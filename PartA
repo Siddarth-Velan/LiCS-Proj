@@ -1,0 +1,206 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+//TASK 1
+
+vector<string> tokenizer(string s){
+    vector<string> tokens;
+    for(int i = 0; i < s.length(); i++){
+        if(s[i] == '(' || s[i]== ')' || s[i] == '+' || s[i] == '*' || s[i] == '>' || s[i] == '~') tokens.push_back(string(1,s[i]));
+        else if(isspace(s[i])) continue;
+        else if(isalnum(s[i])){
+            int temp = i;
+            while(i < s.length() && isalnum(s[i])) i++;
+            tokens.push_back(s.substr(temp, (i - temp)));
+            i--;
+        }
+        else throw invalid_argument("invalid parse");
+    }
+    return tokens;
+}
+bool isBin(string s){
+    if(s == '+' || s == '*' || s == '>') return true;
+    else return false; 
+}
+bool isOperator(const string& t) { return isBinary(t) || t == "~"; }
+
+string infix_to_prefix(const vector<string> s){
+    stack<string> operand, operator;
+    for (const string& t : tokens) {
+        if (t == "(") {
+            continue;
+        } else if (t == ")") {
+            if (operators.empty())
+                throw invalid_argument(" invalid ')' ");
+            string op = operators.top();
+            operators.pop();
+
+            if (isBinary(op)) {
+                if (operands.size() < 2)
+                    throw invalid_argument("operator '" + op + "' is missing an operand");
+                string right = move(operands.top()); operands.pop();
+                string left  = move(operands.top()); operands.pop();
+                operands.push(op + " " + left + " " + right);
+            } else {  // op == "~"
+                if (operands.empty())
+                    throw invalid_argument("'~' is missing its operand");
+                string x = move(operands.top()); operands.pop();
+                operands.push("~ " + x);
+            }
+        } else if (isOperator(t)) {
+            operators.push(t);
+        } else {
+            operands.push(t);  // atom
+        }
+    }
+
+    if (!operators.empty() || operands.size() != 1)
+        throw invalid_argument("wrong formula");
+    return operands.top();
+}
+
+//TASK 2
+ 
+struct Node {
+    string val;
+    Node* left = nullptr;
+    Node* right = nullptr; 
+    Node(string v) : val(v) {}
+};
+ 
+vector<string> split(const string& s) {
+    vector<string> tokens;
+    stringstream ss(s);
+    string t;
+    while (ss >> t) tokens.push_back(t);
+    return tokens;
+}
+ 
+// Recursive
+Node* buildRec(const vector<string>& t, int& i) {
+    Node* n = new Node(t[i++]);
+    if (isBinary(n->val)) {
+        n->left = buildRec(t, i);
+        n->right = buildRec(t, i);
+    } else if (n->val == "~") {
+        n->right = buildRec(t, i);
+    }
+    return n;
+}
+ 
+Node* prefixToTreeRec(const string& prefix) {
+    vector<string> t = split(prefix);
+    int i = 0;
+    return buildRec(t, i);
+}
+ 
+// Iterative
+Node* prefixToTreeIter(const string& prefix) {
+    vector<string> t = split(prefix);
+    stack<Node*> st;
+    for (int i = (int)t.size() - 1; i >= 0; i--) {
+        Node* n = new Node(t[i]);
+        if (isBinary(t[i])) {
+            n->left = st.top(); st.pop();
+            n->right = st.top(); st.pop();
+        } else if (t[i] == "~") {
+            n->right = st.top(); st.pop();
+        }
+        st.push(n);
+    }
+    return st.top();
+}
+ 
+//TASK 3
+void inorderRec(Node* n) {
+    if (!n) return;
+    if (!n->left && !n->right) { cout << n->val; return; }
+    cout << "(";
+    inorderRec(n->left);
+    cout << n->val;
+    inorderRec(n->right);
+    cout << ")";
+}
+void inorderIter(Node* root) {
+    stack<pair<Node*, int>> st;
+    st.push({root, 0});
+    while (!st.empty()) {
+        Node* n = st.top().first;
+        int state = st.top().second;
+        if (!n->left && !n->right) {
+            cout << n->val;
+            st.pop();
+        } else if (state == 0) {
+            cout << "(";
+            st.top().second = 1;
+            if (n->left) st.push({n->left, 0});
+        } else if (state == 1) {
+            cout << n->val;
+            st.top().second = 2;
+            st.push({n->right, 0});
+        } else {
+            cout << ")";
+            st.pop();
+        }
+    }
+}
+ 
+void preorderRec(Node* n) {
+    if (!n) return;
+    cout << n->val << " ";
+    preorderRec(n->left);
+    preorderRec(n->right);
+}
+ 
+void preorderIter(Node* root) {
+    stack<Node*> st;
+    st.push(root);
+    while (!st.empty()) {
+        Node* n = st.top(); st.pop();
+        cout << n->val << " ";
+        if (n->right) st.push(n->right);
+        if (n->left) st.push(n->left);
+    }
+}
+ 
+void postorderRec(Node* n) {
+    if (!n) return;
+    postorderRec(n->left);
+    postorderRec(n->right);
+    cout << n->val << " ";
+}
+
+void postorderIter(Node* root) {
+    stack<Node*> s1, s2;
+    s1.push(root);
+    while (!s1.empty()) {
+        Node* n = s1.top(); s1.pop();
+        s2.push(n);
+        if (n->left) s1.push(n->left);
+        if (n->right) s1.push(n->right);
+    }
+    while (!s2.empty()) {
+        cout << s2.top()->val << " ";
+        s2.pop();
+    }
+}
+ 
+int main() {
+    string infix;
+    getline(cin, infix);
+ 
+    string prefix = infixToPrefix(tokenize(infix));
+    cout << "Prefix: " << prefix << "\n";
+ 
+    Node* root = prefixToTreeRec(prefix);
+    Node* root = prefixToTreeIter(prefix);
+ 
+    cout << "In-order (rec):    "; inorderRec(root) << "\n";
+    cout << "In-order (iter):   "; inorderIter(root) << "\n";
+    cout << "Pre-order (rec):   "; preorderRec(root) << "\n";
+    cout << "Pre-order (iter):  "; preorderIter(root) << "\n";
+    cout << "Post-order (rec):  "; postorderRec(root) << "\n";
+    cout << "Post-order (iter): "; postorderIter(root) << "\n";
+    return 0;
+}
+ 
